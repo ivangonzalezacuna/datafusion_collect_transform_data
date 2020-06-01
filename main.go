@@ -71,7 +71,18 @@ type (
 	FinalWifiData struct {
 		Sensor           string  `json:"sensor"`
 		Timestamp        string  `json:"timestamp"`
-		ConnectedDevices float64 `json:"person"`
+		ConnectedDevices float64 `json:"connecteddevices"`
+	}
+
+	// FinalDataFusion is the struct with the data to send to the LogisticRegression Model
+	FinalDataFusion struct {
+		Timestamp            string  `json:"timestamp"`
+		Person               int     `json:"person"`
+		Presence             float64 `json:"presence"`
+		ConnectedDevices     float64 `json:"connecteddevices"`
+		RfidPower            float64 `json:"power"`
+		RfidUserPercentage   float64 `json:"rfiduser"`
+		CameraUserPercentage float64 `json:"camerauser"`
 	}
 )
 
