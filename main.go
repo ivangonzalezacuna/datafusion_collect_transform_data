@@ -5,73 +5,84 @@ import (
 	"math/rand"
 	"strconv"
 
+	ml "mainProcess/logisticregression"
+
 	log "github.com/sirupsen/logrus"
 )
 
 type (
-	// CameraData stores the data received from the camera
-	CameraData struct {
+	cameraStruct struct {
 		Sensor    string `json:"sensor"`
 		Timestamp string `json:"timestamp"`
 		Person    int    `json:"person"`
 	}
-	// PresenceData stores the data received from the presence detection sensor
-	PresenceData struct {
+
+	presenceStruct struct {
 		Sensor    string `json:"sensor"`
 		Timestamp string `json:"timestamp"`
 		Detection bool   `json:"detection"`
 	}
-	// RfidData stores the data received from the rfid reader
-	RfidData struct {
+
+	rfidStruct struct {
 		Sensor    string  `json:"sensor"`
 		Timestamp string  `json:"timestamp"`
 		Power     float64 `json:"power"`
 		Person    int     `json:"person"`
 	}
-	// WifiData stores the data received from the wifi
-	WifiData struct {
+
+	wifiStruct struct {
 		Sensor           string `json:"sensor"`
 		Timestamp        string `json:"timestamp"`
 		ConnectedDevices int    `json:"connecteddevices"`
 	}
 
-	// FinalCameraData stores the final fusion data for the camera
-	FinalCameraData struct {
+	cameraStructFinal struct {
 		Sensor      string                   `json:"sensor"`
 		Timestamp   string                   `json:"timestamp"`
-		PersonCount []FinalCameraPersonCount `json:"personcount"`
+		PersonCount []cameraStructCountFinal `json:"personcount"`
 	}
-	//FinalCameraPersonCount stores the list
-	FinalCameraPersonCount struct {
+	cameraStructCountFinal struct {
 		Count  int `json:"count"`
 		Person int `json:"person"`
 	}
 
-	// FinalPresenceData stores the final fusion data for the presence detector
-	FinalPresenceData struct {
+	presenceStructFinal struct {
 		Sensor    string  `json:"sensor"`
 		Timestamp string  `json:"timestamp"`
 		Detection float64 `json:"detection"`
 	}
 
-	// FinalRfidData stores the final fusion data for the RFID reader
-	FinalRfidData struct {
+	rfidStructFinal struct {
 		Sensor      string                 `json:"sensor"`
 		Timestamp   string                 `json:"timestamp"`
-		PersonCount []FinalRfidPersonCount `json:"personcount"`
+		PersonCount []rfidStructCountFinal `json:"personcount"`
 	}
-	//FinalRfidPersonCount stores the list
-	FinalRfidPersonCount struct {
+	rfidStructCountFinal struct {
 		Count  int     `json:"count"`
 		Power  float64 `json:"power"`
 		Person int     `json:"person"`
 	}
 
-	// FinalWifiData stores the final fusion data for the WiFi
-	FinalWifiData struct {
+	wifiStructFinal struct {
 		Sensor           string  `json:"sensor"`
 		Timestamp        string  `json:"timestamp"`
 		ConnectedDevices float64 `json:"connecteddevices"`
+	}
+
+	// CollectData stores all the structs with received data
+	CollectData struct {
+		Camera   []cameraStruct
+		Presence []presenceStruct
+		Rfid     []rfidStruct
+		Wifi     []wifiStruct
+	}
+
+	// JoinedData stores the final data fusion from the sensors
+	JoinedData struct {
+		Camera   cameraStructFinal
+		Presence presenceStructFinal
+		Rfid     rfidStructFinal
+		Wifi     wifiStructFinal
 	}
 
 	// FinalDataFusion is the struct with the data to send to the LogisticRegression Model
@@ -88,16 +99,10 @@ type (
 
 var (
 	// Initial array of data received from each sensor
-	cameraInfo   []CameraData
-	presenceInfo []PresenceData
-	rfidInfo     []RfidData
-	wifiInfo     []WifiData
+	receivedData CollectData
 
 	// Struct generated from the received data of each sensor
-	finalCameraInfo   FinalCameraData
-	finalPresenceInfo FinalPresenceData
-	finalRfidInfo     FinalRfidData
-	finalWifiInfo     FinalWifiData
+	generatedData JoinedData
 
 	// Array of data for each detected user by the camera and/or rfid reader
 	finalDataFusion []FinalDataFusion
@@ -111,7 +116,7 @@ func auxSendCamera() {
 	i := 0
 	for i < 20 {
 		timestamp := 123456789 + i
-		data := CameraData{
+		data := cameraStruct{
 			Sensor:    "camera",
 			Timestamp: strconv.Itoa(timestamp),
 			Person:    5,
@@ -121,7 +126,7 @@ func auxSendCamera() {
 	}
 	for i < 30 {
 		timestamp := 123456789 + i
-		data := CameraData{
+		data := cameraStruct{
 			Sensor:    "camera",
 			Timestamp: strconv.Itoa(timestamp),
 			Person:    7,
@@ -130,7 +135,7 @@ func auxSendCamera() {
 		i++
 	}
 	timestamp := 123456789 + i
-	data := CameraData{
+	data := cameraStruct{
 		Sensor:    "camera",
 		Timestamp: strconv.Itoa(timestamp),
 		Person:    9,
@@ -143,7 +148,7 @@ func auxSendPresence() {
 	for i < 20 {
 		timestamp := 123456789 + i
 		detection := (i%2 == 0) || (i%3 == 0)
-		data := PresenceData{
+		data := presenceStruct{
 			Sensor:    "presence",
 			Timestamp: strconv.Itoa(timestamp),
 			Detection: detection,
@@ -157,7 +162,7 @@ func auxSendRfid() {
 	i := 0
 	for i < 20 {
 		timestamp := 123456789 + i
-		data := RfidData{
+		data := rfidStruct{
 			Sensor:    "rfid",
 			Timestamp: strconv.Itoa(timestamp),
 			Power:     float64(i),
@@ -168,7 +173,7 @@ func auxSendRfid() {
 	}
 	for i < 30 {
 		timestamp := 123456789 + i
-		data := RfidData{
+		data := rfidStruct{
 			Sensor:    "rfid",
 			Timestamp: strconv.Itoa(timestamp),
 			Power:     float64(i),
@@ -178,7 +183,7 @@ func auxSendRfid() {
 		i++
 	}
 	timestamp := 123456789 + i
-	data := RfidData{
+	data := rfidStruct{
 		Sensor:    "rfid",
 		Timestamp: strconv.Itoa(timestamp),
 		Power:     float64(i),
@@ -193,7 +198,7 @@ func auxSendWifi() {
 		timestamp := 123456789 + i
 		min := 0
 		max := 3
-		data := WifiData{
+		data := wifiStruct{
 			Sensor:           "wifi",
 			Timestamp:        strconv.Itoa(timestamp),
 			ConnectedDevices: rand.Intn(max-min) + min,
@@ -218,49 +223,55 @@ func main() {
 	calculateRfidFinalValues()
 	calculateWifiFinalValues()
 
-	log.Debugf("CAMERA -> %#v", finalCameraInfo)
-	log.Debugf("PRESENCE -> %#v", finalPresenceInfo)
-	log.Debugf("RFID -> %#v", finalRfidInfo)
-	log.Debugf("WiFi -> %#v", finalWifiInfo)
+	log.Debugf("CAMERA -> %#v", generatedData.Camera)
+	log.Debugf("PRESENCE -> %#v", generatedData.Presence)
+	log.Debugf("RFID -> %#v", generatedData.Rfid)
+	log.Debugf("WiFi -> %#v", generatedData.Wifi)
 
 	// Obtain a final list with the data to send to the ML algorithm
 	obtainFinalStruct()
 	for k, v := range finalDataFusion {
 		log.Debugf("DATA FUSION [%d] -> %#v", k, v)
 	}
+
+	err := ml.LoadTrainData("./data/trackDataTrain.csv", "./data/trackDataTrain.csv")
+	if err != nil {
+		log.Errorf(err.Error())
+	}
+	log.Infof("Trained ML algorithm")
 }
 
 func obtainFinalStruct() {
-	finalTimestamp := finalCameraInfo.Timestamp
-	if finalPresenceInfo.Timestamp < finalTimestamp || finalTimestamp == "" {
-		finalTimestamp = finalPresenceInfo.Timestamp
+	finalTimestamp := generatedData.Camera.Timestamp
+	if generatedData.Presence.Timestamp < finalTimestamp || finalTimestamp == "" {
+		finalTimestamp = generatedData.Presence.Timestamp
 	}
-	if finalRfidInfo.Timestamp < finalTimestamp || finalTimestamp == "" {
-		finalTimestamp = finalRfidInfo.Timestamp
+	if generatedData.Rfid.Timestamp < finalTimestamp || finalTimestamp == "" {
+		finalTimestamp = generatedData.Rfid.Timestamp
 	}
-	if finalWifiInfo.Timestamp < finalTimestamp || finalTimestamp == "" {
-		finalTimestamp = finalWifiInfo.Timestamp
+	if generatedData.Wifi.Timestamp < finalTimestamp || finalTimestamp == "" {
+		finalTimestamp = generatedData.Wifi.Timestamp
 	}
 
 	totalCameraCount := 0
 	totalRfidCount := 0
 
-	for _, v := range finalCameraInfo.PersonCount {
+	for _, v := range generatedData.Camera.PersonCount {
 		totalCameraCount += v.Count
 	}
-	for _, v := range finalRfidInfo.PersonCount {
+	for _, v := range generatedData.Rfid.PersonCount {
 		totalRfidCount += v.Count
 	}
 
-	avgCameraUserMap := make(map[int]float64, len(finalCameraInfo.PersonCount))
-	avgRfidUserMap := make(map[int]float64, len(finalRfidInfo.PersonCount))
+	avgCameraUserMap := make(map[int]float64, len(generatedData.Camera.PersonCount))
+	avgRfidUserMap := make(map[int]float64, len(generatedData.Rfid.PersonCount))
 
-	for _, v := range finalCameraInfo.PersonCount {
+	for _, v := range generatedData.Camera.PersonCount {
 		avgPerson := float64(v.Count) / float64(totalCameraCount)
 		avgCameraUserMap[v.Person] = avgPerson
 	}
 
-	for _, v := range finalRfidInfo.PersonCount {
+	for _, v := range generatedData.Rfid.PersonCount {
 		avgPerson := float64(v.Count) / float64(totalRfidCount)
 		avgRfidUserMap[v.Person] = avgPerson
 	}
@@ -301,12 +312,12 @@ func generateCurrentData(finalTimestamp string, person int, rfidUser, camUser fl
 	currentData := FinalDataFusion{
 		Timestamp:   finalTimestamp,
 		Person:      person,
-		Presence:    finalPresenceInfo.Detection,
-		ConnDevices: finalWifiInfo.ConnectedDevices,
+		Presence:    generatedData.Presence.Detection,
+		ConnDevices: generatedData.Wifi.ConnectedDevices,
 		RfidUser:    rfidUser,
 		CameraUser:  camUser,
 	}
-	for _, data := range finalRfidInfo.PersonCount {
+	for _, data := range generatedData.Rfid.PersonCount {
 		if data.Person == currentData.Person {
 			currentData.RfidPower = data.Power
 		}
@@ -333,53 +344,53 @@ func dataReceiver(u interface{}, topic string) {
 	log.Tracef(string(byteData))
 	switch topic {
 	case "camera":
-		var c CameraData
+		var c cameraStruct
 		err = json.Unmarshal(byteData, &c)
 		if err != nil {
 			log.Errorf(err.Error())
 			return
 		}
-		cameraInfo = append(cameraInfo, c)
+		receivedData.Camera = append(receivedData.Camera, c)
 		log.Tracef("Camera detected")
 	case "presence":
-		var p PresenceData
+		var p presenceStruct
 		err = json.Unmarshal(byteData, &p)
 		if err != nil {
 			log.Errorf(err.Error())
 			return
 		}
-		presenceInfo = append(presenceInfo, p)
+		receivedData.Presence = append(receivedData.Presence, p)
 		log.Tracef("Presence detected")
 	case "rfid":
-		var r RfidData
+		var r rfidStruct
 		err = json.Unmarshal(byteData, &r)
 		if err != nil {
 			log.Errorf(err.Error())
 			return
 		}
-		rfidInfo = append(rfidInfo, r)
+		receivedData.Rfid = append(receivedData.Rfid, r)
 		log.Tracef("RFID detected")
 	case "wifi":
-		var w WifiData
+		var w wifiStruct
 		err = json.Unmarshal(byteData, &w)
 		if err != nil {
 			log.Errorf(err.Error())
 			return
 		}
-		wifiInfo = append(wifiInfo, w)
+		receivedData.Wifi = append(receivedData.Wifi, w)
 		log.Tracef("WiFi detected")
 	}
 }
 
 func calculateCameraFinalValues() error {
-	finalCameraInfo.Sensor = "camera"
-	if len(cameraInfo) == 0 {
+	generatedData.Camera.Sensor = "camera"
+	if len(receivedData.Camera) == 0 {
 		return nil
 	}
-	finalCameraInfo.Timestamp = cameraInfo[0].Timestamp
+	generatedData.Camera.Timestamp = receivedData.Camera[0].Timestamp
 
 	peopleCount := make(map[int]int)
-	for _, v := range cameraInfo {
+	for _, v := range receivedData.Camera {
 		if _, exist := peopleCount[v.Person]; exist {
 			peopleCount[v.Person]++
 		} else {
@@ -388,8 +399,8 @@ func calculateCameraFinalValues() error {
 	}
 
 	for k, v := range peopleCount {
-		currentCount := FinalCameraPersonCount{Person: k, Count: v}
-		finalCameraInfo.PersonCount = append(finalCameraInfo.PersonCount, currentCount)
+		currentCount := cameraStructCountFinal{Person: k, Count: v}
+		generatedData.Camera.PersonCount = append(generatedData.Camera.PersonCount, currentCount)
 		log.Debugf("CAMERA -> Person : %d , Count : %d\n", k, v)
 	}
 
@@ -397,38 +408,38 @@ func calculateCameraFinalValues() error {
 }
 
 func calculatePresenceFinalValues() error {
-	finalPresenceInfo.Sensor = "presence"
-	if len(presenceInfo) == 0 {
+	generatedData.Presence.Sensor = "presence"
+	if len(receivedData.Presence) == 0 {
 		return nil
 	}
-	finalPresenceInfo.Timestamp = presenceInfo[0].Timestamp
+	generatedData.Presence.Timestamp = receivedData.Presence[0].Timestamp
 
-	totalEntries := len(presenceInfo)
+	totalEntries := len(receivedData.Presence)
 	var positiveEntries int = 0
-	for _, v := range presenceInfo {
+	for _, v := range receivedData.Presence {
 		if v.Detection {
 			positiveEntries++
 		}
 	}
 	detectionAvg := (float64(positiveEntries) / float64(totalEntries)) * 100
 	log.Debugf("PRESENCE AVG: %.2f", detectionAvg)
-	finalPresenceInfo.Detection = detectionAvg
+	generatedData.Presence.Detection = detectionAvg
 
 	return nil
 }
 
 func calculateRfidFinalValues() error {
-	finalRfidInfo.Sensor = "rfid"
-	if len(rfidInfo) == 0 {
+	generatedData.Rfid.Sensor = "rfid"
+	if len(receivedData.Rfid) == 0 {
 		return nil
 	}
-	finalRfidInfo.Timestamp = rfidInfo[0].Timestamp
+	generatedData.Rfid.Timestamp = receivedData.Rfid[0].Timestamp
 
 	peopleCount := make(map[int]struct {
 		count int
 		total float64
 	})
-	for _, v := range rfidInfo {
+	for _, v := range receivedData.Rfid {
 		if data, exist := peopleCount[v.Person]; exist {
 			data.count++
 			data.total += v.Power
@@ -442,7 +453,7 @@ func calculateRfidFinalValues() error {
 
 	for k, v := range peopleCount {
 		powerAvg := v.total / float64(v.count)
-		finalRfidInfo.PersonCount = append(finalRfidInfo.PersonCount, FinalRfidPersonCount{Person: k, Count: v.count, Power: powerAvg})
+		generatedData.Rfid.PersonCount = append(generatedData.Rfid.PersonCount, rfidStructCountFinal{Person: k, Count: v.count, Power: powerAvg})
 		log.Debugf("RFID -> Person: %d , Data: %v\n", k, v)
 	}
 
@@ -450,20 +461,20 @@ func calculateRfidFinalValues() error {
 }
 
 func calculateWifiFinalValues() error {
-	finalWifiInfo.Sensor = "wifi"
-	if len(wifiInfo) == 0 {
+	generatedData.Wifi.Sensor = "wifi"
+	if len(receivedData.Wifi) == 0 {
 		return nil
 	}
-	finalWifiInfo.Timestamp = wifiInfo[0].Timestamp
+	generatedData.Wifi.Timestamp = receivedData.Wifi[0].Timestamp
 
-	totalEntries := len(wifiInfo)
+	totalEntries := len(receivedData.Wifi)
 	var totalConnDevices int = 0
-	for _, v := range wifiInfo {
+	for _, v := range receivedData.Wifi {
 		totalConnDevices += v.ConnectedDevices
 	}
 	devicesAvg := float64(totalConnDevices) / float64(totalEntries)
 	log.Debugf("WiFi AVG: %f", devicesAvg)
-	finalWifiInfo.ConnectedDevices = devicesAvg
+	generatedData.Wifi.ConnectedDevices = devicesAvg
 
 	return nil
 }

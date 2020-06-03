@@ -20,10 +20,11 @@ _cgo_export.*
 _testmain.go
 
 mainProcess
+data
+logisticregression
 
 *.exe
 *.test
 *.prof
 *.png
 *.txt
-ml-in-go-examples
