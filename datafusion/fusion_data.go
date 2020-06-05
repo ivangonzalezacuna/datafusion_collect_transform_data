@@ -1,7 +1,7 @@
 package mainprocess
 
 import (
-	"github.com/micro/go-micro/util/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -62,9 +62,6 @@ func (f *FinalData) ObtainFinalData(data JoinedData) {
 		}
 	}
 
-	log.Tracef("%#v", avgCameraUserMap)
-	log.Tracef("%#v", avgRfidUserMap)
-
 	for k, v := range avgCameraUserMap {
 		if !f.isPersonEntryCreated(k) {
 			currentData := PredictionDataStruct{
@@ -80,7 +77,7 @@ func (f *FinalData) ObtainFinalData(data JoinedData) {
 			}
 			*f = append(*f, currentData)
 		} else {
-			log.Infof("Person %d already saved in struct slice", k)
+			log.Debugf("Person %d already saved in struct slice", k)
 		}
 	}
 
@@ -99,7 +96,7 @@ func (f *FinalData) ObtainFinalData(data JoinedData) {
 			}
 			*f = append(*f, currentData)
 		} else {
-			log.Infof("Person %d already saved in struct slice", k)
+			log.Debugf("Person %d already saved in struct slice", k)
 		}
 	}
 }
@@ -123,4 +120,15 @@ func (f *FinalData) isPersonEntryCreated(person int) bool {
 		}
 	}
 	return false
+}
+
+// To2DFloatArray converts the array of PredictionDataStruct in a 2D Array of float64
+func (f *FinalData) To2DFloatArray() [][]float64 {
+	var res [][]float64
+	for _, v := range *f {
+		// var d1 []float64
+		d1 := []float64{v.Presence, v.ConnDevices, v.RfidUser, v.RfidPower, v.CameraUser}
+		res = append(res, d1)
+	}
+	return res
 }

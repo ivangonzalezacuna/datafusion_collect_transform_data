@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"math/rand"
+	"os"
 	"strconv"
 	"time"
 
@@ -19,113 +20,29 @@ var (
 	generatedData datafusion.JoinedData
 	// Array of data for each detected user by the camera and/or rfid reader
 	predictionDataStruct datafusion.FinalData
+	// Struct to store the train data for the Logistic Regression
+	trainData ml.TrainData
+	// Structrained Logistic Regression Model and other related data
+	trainModel ml.ModelData
 )
 
 func init() {
 	log.SetLevel(log.DebugLevel)
 	receivedData = datafusion.CollectData{}
-}
 
-func auxSendCamera() {
-	i := 0
-	for i < 243 {
-		timestamp := 123456789 + i
-		data := map[string]interface{}{
-			"sensor":    "camera",
-			"timestamp": strconv.Itoa(timestamp),
-			"person":    5,
-		}
-		dataReceiver(data, data["sensor"].(string))
-		i++
+	trainData, err := ml.LoadTrainDataFromCSV("./data/trackDataTrain.csv", "./data/trackDataTrain.csv")
+	if err != nil {
+		log.Errorf(err.Error())
+		os.Exit(400)
 	}
-	for i < 653 {
-		timestamp := 123456789 + i
-		data := map[string]interface{}{
-			"sensor":    "camera",
-			"timestamp": strconv.Itoa(timestamp),
-			"person":    7,
-		}
-		dataReceiver(data, data["sensor"].(string))
-		i++
-	}
-	for i < 1243 {
-		timestamp := 123456789 + i
-		data := map[string]interface{}{
-			"sensor":    "camera",
-			"timestamp": strconv.Itoa(timestamp),
-			"person":    9,
-		}
-		dataReceiver(data, data["sensor"].(string))
-		i++
-	}
-}
 
-func auxSendPresence() {
-	i := 0
-	for i < 476 {
-		timestamp := 123456789 + i
-		detection := (i%2 == 0) || (i%3 == 0)
-		data := map[string]interface{}{
-			"sensor":    "presence",
-			"timestamp": strconv.Itoa(timestamp),
-			"detection": detection,
-		}
-		dataReceiver(data, data["sensor"].(string))
-		i++
+	trainModel, err = trainData.CreateBestModel()
+	if err != nil {
+		log.Errorf(err.Error())
+		os.Exit(400)
 	}
-}
 
-func auxSendRfid() {
-	i := 0
-	for i < 456 {
-		timestamp := 123456789 + i
-		data := map[string]interface{}{
-			"sensor":    "rfid",
-			"timestamp": strconv.Itoa(timestamp),
-			"power":     float64(i),
-			"person":    7,
-		}
-		dataReceiver(data, data["sensor"].(string))
-		i++
-	}
-	for i < 856 {
-		timestamp := 123456789 + i
-		data := map[string]interface{}{
-			"sensor":    "rfid",
-			"timestamp": strconv.Itoa(timestamp),
-			"power":     float64(i),
-			"person":    5,
-		}
-		dataReceiver(data, data["sensor"].(string))
-		i++
-	}
-	for i < 1456 {
-		timestamp := 123456789 + i
-		data := map[string]interface{}{
-			"sensor":    "rfid",
-			"timestamp": strconv.Itoa(timestamp),
-			"power":     float64(i),
-			"person":    6,
-		}
-		dataReceiver(data, data["sensor"].(string))
-		i++
-	}
-}
-
-func auxSendWifi() {
-	i := 0
-	for i < 865 {
-		timestamp := 123456789 + i
-		min := 0
-		max := 3
-		data := map[string]interface{}{
-			"sensor":           "wifi",
-			"timestamp":        strconv.Itoa(timestamp),
-			"connecteddevices": rand.Intn(max-min) + min,
-		}
-		dataReceiver(data, data["sensor"].(string))
-		i++
-	}
+	log.Debugf("ModelData: %#v", trainModel)
 }
 
 func main() {
@@ -164,18 +81,121 @@ func main() {
 	result, _ := json.MarshalIndent(predictionDataStruct, "", "  ")
 	log.Infof(string(result))
 
-	err := ml.LoadTrainData("./data/trackDataTrain.csv", "./data/trackDataTrain.csv")
+	log.Infof("Time doing join and calculating final data array: %v", t2.Sub(t1))
+
+	predictionData := predictionDataStruct.To2DFloatArray()
+	log.Infof("Obtained 2D Array to predict: %v", predictionData)
+
+	prediction, err := trainModel.MakePrediction(predictionData)
 	if err != nil {
 		log.Errorf(err.Error())
 	}
-	log.Infof("Trained ML algorithm")
 
-	log.Infof("Camera collected data size: %d", len(receivedData.Camera))
-	log.Infof("Presence collected data size: %d", len(receivedData.Presence))
-	log.Infof("Rfid collected data size: %d", len(receivedData.Rfid))
-	log.Infof("Wifi collected data size: %d", len(receivedData.Wifi))
-	log.Infof("Total collected data size: %d", len(receivedData.Camera)+len(receivedData.Presence)+len(receivedData.Rfid)+len(receivedData.Wifi))
-	log.Infof("Time doing join and calculating final data array: %v", t2.Sub(t1))
+	log.Infof("Result of prediction: %v", prediction)
+}
+
+func auxSendCamera() {
+	i := 0
+	for i < 20 {
+		timestamp := 123456789 + i
+		data := map[string]interface{}{
+			"sensor":    "camera",
+			"timestamp": strconv.Itoa(timestamp),
+			"person":    5,
+		}
+		dataReceiver(data, data["sensor"].(string))
+		i++
+	}
+	for i < 40 {
+		timestamp := 123456789 + i
+		data := map[string]interface{}{
+			"sensor":    "camera",
+			"timestamp": strconv.Itoa(timestamp),
+			"person":    7,
+		}
+		dataReceiver(data, data["sensor"].(string))
+		i++
+	}
+	for i < 100 {
+		timestamp := 123456789 + i
+		data := map[string]interface{}{
+			"sensor":    "camera",
+			"timestamp": strconv.Itoa(timestamp),
+			"person":    9,
+		}
+		dataReceiver(data, data["sensor"].(string))
+		i++
+	}
+}
+
+func auxSendPresence() {
+	i := 0
+	for i < 10 {
+		timestamp := 123456789 + i
+		detection := (i%7 == 0) // || (i%3 == 0)
+		data := map[string]interface{}{
+			"sensor":    "presence",
+			"timestamp": strconv.Itoa(timestamp),
+			"detection": detection,
+		}
+		dataReceiver(data, data["sensor"].(string))
+		i++
+	}
+}
+
+func auxSendRfid() {
+	i := 0
+	min := 0
+	max := 100
+	for i < 2 {
+		timestamp := 123456789 + i
+		data := map[string]interface{}{
+			"sensor":    "rfid",
+			"timestamp": strconv.Itoa(timestamp),
+			"power":     float64(rand.Intn(max-min) + min),
+			"person":    7,
+		}
+		dataReceiver(data, data["sensor"].(string))
+		i++
+	}
+	for i < 3 {
+		timestamp := 123456789 + i
+		data := map[string]interface{}{
+			"sensor":    "rfid",
+			"timestamp": strconv.Itoa(timestamp),
+			"power":     float64(rand.Intn(max-min) + min),
+			"person":    5,
+		}
+		dataReceiver(data, data["sensor"].(string))
+		i++
+	}
+	for i < 70 {
+		timestamp := 123456789 + i
+		data := map[string]interface{}{
+			"sensor":    "rfid",
+			"timestamp": strconv.Itoa(timestamp),
+			"power":     float64(rand.Intn(max-min) + min),
+			"person":    6,
+		}
+		dataReceiver(data, data["sensor"].(string))
+		i++
+	}
+}
+
+func auxSendWifi() {
+	i := 0
+	for i < 20 {
+		timestamp := 123456789 + i
+		min := 0
+		max := 3
+		data := map[string]interface{}{
+			"sensor":           "wifi",
+			"timestamp":        strconv.Itoa(timestamp),
+			"connecteddevices": rand.Intn(max-min) + min,
+		}
+		dataReceiver(data, data["sensor"].(string))
+		i++
+	}
 }
 
 func dataReceiver(u interface{}, topic string) {
