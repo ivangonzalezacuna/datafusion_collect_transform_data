@@ -3,7 +3,7 @@ package mainprocess
 import (
 	"encoding/json"
 
-	"github.com/micro/go-micro/util/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type (

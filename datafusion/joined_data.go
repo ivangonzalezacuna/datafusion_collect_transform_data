@@ -1,7 +1,7 @@
 package mainprocess
 
 import (
-	"github.com/micro/go-micro/util/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
