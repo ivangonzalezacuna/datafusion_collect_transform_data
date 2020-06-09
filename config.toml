@@ -1,7 +1,7 @@
 [mqtt]
 server="tcp://127.0.0.1:1883"
 clientId="test-client"
-keepAlive=2
+keepAlive=10
 pingTimeout=1
 
 [ml]

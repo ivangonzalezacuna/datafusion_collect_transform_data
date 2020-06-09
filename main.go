@@ -273,7 +273,7 @@ func auxSendCamera() {
 		time.Sleep(1 * time.Millisecond)
 		i++
 	}
-	for i < 100 {
+	for i < 60 {
 		timestamp := 123456789 + i
 		data := map[string]interface{}{
 			"sensor":    "camera",
@@ -300,7 +300,7 @@ func auxSendCamera() {
 
 func auxSendPresence() {
 	i := 0
-	for i < 49 {
+	for i < 60 {
 		timestamp := 123456789 + i
 		detection := (i%7 == 0) // || (i%3 == 0)
 		data := map[string]interface{}{
@@ -313,6 +313,7 @@ func auxSendPresence() {
 			log.Errorf(err.Error())
 			return
 		}
+		log.Errorf("DETECTION: %v", (!txFlag && detection))
 		if txFlag || (!txFlag && detection) {
 			token := c.Publish("Node/Sensor/Presence", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -330,7 +331,7 @@ func auxSendRfid() {
 	i := 0
 	min := 0
 	max := 100
-	for i < 2 {
+	for i < 8 {
 		timestamp := 123456789 + i
 		power := float64(rand.Intn(max-min) + min)
 		data := map[string]interface{}{
@@ -344,6 +345,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
+		log.Errorf("RFID: %v", (!txFlag && (power >= 60)))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -355,7 +357,7 @@ func auxSendRfid() {
 		time.Sleep(1 * time.Millisecond)
 		i++
 	}
-	for i < 3 {
+	for i < 20 {
 		timestamp := 123456789 + i
 		power := float64(rand.Intn(max-min) + min)
 		data := map[string]interface{}{
@@ -369,6 +371,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
+		log.Errorf("RFID: %v", (!txFlag && (power >= 60)))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -380,7 +383,7 @@ func auxSendRfid() {
 		time.Sleep(1 * time.Millisecond)
 		i++
 	}
-	for i < 70 {
+	for i < 60 {
 		timestamp := 123456789 + i
 		power := float64(rand.Intn(max-min) + min)
 		data := map[string]interface{}{
@@ -394,6 +397,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
+		log.Errorf("RFID: %v", (!txFlag && (power >= 60)))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -424,6 +428,7 @@ func auxSendWifi() {
 			log.Errorf(err.Error())
 			return
 		}
+		log.Infof("RFID: %v", (!txFlag && (devices >= 2)))
 		if txFlag || (!txFlag && (devices >= 2)) {
 			token := c.Publish("Node/Sensor/Wifi", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
