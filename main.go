@@ -37,6 +37,7 @@ var txFlag bool
 var count int
 
 var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+	log.Infof("RECEIVED MESSAGE WITH TxFLAG=%v, COUNT=%v", txFlag, count)
 	if !txFlag && count == 0 {
 		count++
 		value := true
@@ -105,6 +106,13 @@ func init() {
 	opts := mqtt.NewClientOptions().AddBroker(server).SetClientID(clientID)
 	opts.SetKeepAlive(time.Duration(keepAlive) * time.Second)
 	opts.SetPingTimeout(time.Duration(pingTimeout) * time.Second)
+	opts.SetOnConnectHandler(func(client mqtt.Client) {
+		err := subscribeToTopics()
+		if err != nil {
+			log.Errorf(err.Error())
+			os.Exit(400)
+		}
+	})
 
 	log.Infof("Connecting to MQTT broker...")
 	c = mqtt.NewClient(opts)
@@ -149,20 +157,21 @@ func readConfig() {
 	}
 }
 
-func main() {
+func subscribeToTopics() error {
 	log.Infof("Subscribing to MQTT Topic...")
 	if token := c.Subscribe("Node/Sensor/+", 0, f); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		os.Exit(1)
+		return token.Error()
 	}
 
 	if token := c.Subscribe("Node/Flag", 0, ff); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		os.Exit(1)
+		return token.Error()
 	}
+	return nil
+}
 
+func main() {
 	k := 0
-	for k < 3 {
+	for k < 30 {
 		k++
 		// Send data for each sensor (random data)
 		go auxSendCamera()
@@ -238,7 +247,6 @@ func auxSendCamera() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Infof("Flag value %v", txFlag)
 		if txFlag {
 			token := c.Publish("Node/Sensor/Camera", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -313,8 +321,9 @@ func auxSendPresence() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("DETECTION: %v", (!txFlag && detection))
+		log.Errorf("DETECTION: %v", (txFlag || (!txFlag && detection)))
 		if txFlag || (!txFlag && detection) {
+			log.Errorf("SENDING NEW DETECTION?")
 			token := c.Publish("Node/Sensor/Presence", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
@@ -345,7 +354,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("RFID: %v", (!txFlag && (power >= 60)))
+		log.Errorf("RFID: %v", (txFlag || (!txFlag && (power >= 60))))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -371,7 +380,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("RFID: %v", (!txFlag && (power >= 60)))
+		log.Errorf("RFID: %v", (txFlag || (!txFlag && (power >= 60))))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -397,7 +406,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("RFID: %v", (!txFlag && (power >= 60)))
+		log.Errorf("RFID: %v", (txFlag || (!txFlag && (power >= 60))))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -428,7 +437,7 @@ func auxSendWifi() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Infof("RFID: %v", (!txFlag && (devices >= 2)))
+		log.Errorf("WIFI: %v", (txFlag || (!txFlag && (devices >= 2))))
 		if txFlag || (!txFlag && (devices >= 2)) {
 			token := c.Publish("Node/Sensor/Wifi", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
