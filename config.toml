@@ -1,0 +1,9 @@
+[mqtt]
+server="tcp://127.0.0.1:1883"
+clientId="test-client"
+keepAlive=2
+pingTimeout=1
+
+[ml]
+trainFile="./data/trackDataTrain.csv"
+testFile="./data/trackDataTrain.csv"
