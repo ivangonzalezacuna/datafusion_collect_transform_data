@@ -37,36 +37,36 @@ var txFlag bool
 var count int
 
 var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	log.Infof("RECEIVED MESSAGE WITH TxFLAG=%v, COUNT=%v", txFlag, count)
 	if !txFlag && count == 0 {
 		count++
 		value := true
 		byteData, err := json.Marshal(value)
 		if err != nil {
-			log.Infof(err.Error())
+			log.Errorf(err.Error())
 			return
 		}
-		log.Infof("Activating flag! Because of: %v", string(msg.Payload()))
 		token := c.Publish("Node/Flag", 0, false, byteData)
 		if token.Wait() && token.Error() != nil {
 			panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 		}
 
 		go func() {
-			time.Sleep(200 * time.Millisecond)
+			viper.SetDefault("ml.window", 200)
+			sleepTime := viper.GetInt("ml.window")
+			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 			value := false
 			byteData, err := json.Marshal(value)
 			if err != nil {
-				log.Infof(err.Error())
+				log.Errorf(err.Error())
 				return
 			}
-			log.Infof("Deactivating flag after 200ms! Because of: %v", string(msg.Payload()))
+			log.Infof("[MQTT] Deactivating flag after 200ms!")
 			token := c.Publish("Node/Flag", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 			receivedDataFinal = receivedData
-			log.Infof("Camera size: %v\nPresence size: %v\nRfid size: %v\nWifi size: %v\n",
+			log.Infof("[MQTT] Camera size: %v\nPresence size: %v\nRfid size: %v\nWifi size: %v\n",
 				len(receivedDataFinal.Camera), len(receivedDataFinal.Presence), len(receivedDataFinal.Rfid), len(receivedDataFinal.Wifi))
 			makePredictions()
 			count--
@@ -85,7 +85,7 @@ var ff mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 		log.Errorf(err.Error())
 		return
 	}
-	log.Infof("MSG: %v, TYPE: %T, TOPIC: %v", txFlag, txFlag, msg.Topic())
+	log.Infof("[MQTT] TxFlag updated to ´%v´", txFlag)
 }
 
 func init() {
@@ -114,7 +114,7 @@ func init() {
 		}
 	})
 
-	log.Infof("Connecting to MQTT broker...")
+	log.Infof("[MQTT] Connecting to MQTT broker...")
 	c = mqtt.NewClient(opts)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		log.Errorf(token.Error().Error())
@@ -143,7 +143,7 @@ func generateTrainData() error {
 		return err
 	}
 
-	log.Debugf("ModelData: %#v", trainModel)
+	log.Debugf("[Init] ModelData: %#v", trainModel)
 	return nil
 }
 
@@ -158,7 +158,7 @@ func readConfig() {
 }
 
 func subscribeToTopics() error {
-	log.Infof("Subscribing to MQTT Topic...")
+	log.Infof("[MQTT] Subscribing to MQTT Topic...")
 	if token := c.Subscribe("Node/Sensor/+", 0, f); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
@@ -199,10 +199,10 @@ func makePredictions() {
 	generatedData.Wifi.Sensor = "camera"
 	generatedData.GetFinalWifiValues(receivedDataFinal)
 
-	log.Debugf("CAMERA -> %#v", generatedData.Camera)
-	log.Debugf("PRESENCE -> %#v", generatedData.Presence)
-	log.Debugf("RFID -> %#v", generatedData.Rfid)
-	log.Debugf("WiFi -> %#v", generatedData.Wifi)
+	log.Debugf("[Prediction] CAMERA -> %#v", generatedData.Camera)
+	log.Debugf("[Prediction] PRESENCE -> %#v", generatedData.Presence)
+	log.Debugf("[Prediction] RFID -> %#v", generatedData.Rfid)
+	log.Debugf("[Prediction] WiFi -> %#v", generatedData.Wifi)
 
 	// Obtain a final list with the data to send to the ML algorithm
 	predictionDataStruct = datafusion.FinalData{}
@@ -211,9 +211,9 @@ func makePredictions() {
 	t2 := time.Now()
 
 	result, _ := json.MarshalIndent(predictionDataStruct, "", "  ")
-	log.Infof(string(result))
+	log.Infof("[Prediction] %v", string(result))
 
-	log.Infof("Time doing join and calculating final data array: %v", t2.Sub(t1))
+	log.Infof("[Prediction] Time doing join and calculating final data array: %v", t2.Sub(t1))
 
 	predictionData := predictionDataStruct.To2DFloatArray()
 	// var predictionData [][]float64
@@ -222,14 +222,14 @@ func makePredictions() {
 	// data3 := []float64{25.32, 0.43, 1.43, 21.65, 35.98}
 	// data4 := []float64{28.32, 1.43, 1.43, 21.65, 89.98}
 	// predictionData = append(predictionData, data1, data2, data3, data4)
-	log.Infof("Obtained 2D Array to predict: %v", predictionData)
+	log.Infof("[Prediction] Obtained 2D Array to predict: %v", predictionData)
 
 	prediction, err := trainModel.MakePrediction(predictionData)
 	if err != nil {
 		log.Errorf(err.Error())
 	}
 
-	log.Infof("Result of prediction: %v", prediction)
+	log.Infof("[Prediction] Result of prediction: %v", prediction)
 }
 
 func auxSendCamera() {
@@ -321,9 +321,7 @@ func auxSendPresence() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("DETECTION: %v", (txFlag || (!txFlag && detection)))
 		if txFlag || (!txFlag && detection) {
-			log.Errorf("SENDING NEW DETECTION?")
 			token := c.Publish("Node/Sensor/Presence", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
@@ -354,7 +352,6 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("RFID: %v", (txFlag || (!txFlag && (power >= 60))))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -380,7 +377,6 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("RFID: %v", (txFlag || (!txFlag && (power >= 60))))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -406,7 +402,6 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("RFID: %v", (txFlag || (!txFlag && (power >= 60))))
 		if txFlag || (!txFlag && (power >= 60)) {
 			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
@@ -437,7 +432,6 @@ func auxSendWifi() {
 			log.Errorf(err.Error())
 			return
 		}
-		log.Errorf("WIFI: %v", (txFlag || (!txFlag && (devices >= 2))))
 		if txFlag || (!txFlag && (devices >= 2)) {
 			token := c.Publish("Node/Sensor/Wifi", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
