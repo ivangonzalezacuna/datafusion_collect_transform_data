@@ -5,6 +5,6 @@ keepAlive=10
 pingTimeout=1
 
 [ml]
-trainFile="./data/trackDataTrain.csv"
-testFile="./data/trackDataTrain.csv"
+trainFile="./data/train.csv"
+testFile="./data/train.csv"
 window=200

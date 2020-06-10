@@ -7,7 +7,6 @@
 _obj
 _test
 mainprocess
-data
 ml_regression_tracking
 
 *.exe

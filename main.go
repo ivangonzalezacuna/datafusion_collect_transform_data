@@ -10,7 +10,7 @@ import (
 	"time"
 
 	datafusion "mainprocess/datafusion"
-	ml "mainprocess/logisticregression"
+	ml "mainprocess/ml_regression_tracking"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	log "github.com/sirupsen/logrus"
