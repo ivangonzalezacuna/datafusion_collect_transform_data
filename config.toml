@@ -7,3 +7,4 @@ pingTimeout=1
 [ml]
 trainFile="./data/trackDataTrain.csv"
 testFile="./data/trackDataTrain.csv"
+window=200
