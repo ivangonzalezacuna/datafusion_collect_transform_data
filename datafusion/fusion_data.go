@@ -1,6 +1,8 @@
 package mainprocess
 
 import (
+	"math"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -123,12 +125,16 @@ func (f *FinalData) isPersonEntryCreated(person int) bool {
 }
 
 // To2DFloatArray converts the array of PredictionDataStruct in a 2D Array of float64
-func (f *FinalData) To2DFloatArray() [][]float64 {
-	var res [][]float64
+func (f *FinalData) To2DFloatArray() (data [][]float64) {
 	for _, v := range *f {
-		// var d1 []float64
-		d1 := []float64{v.Presence, v.ConnDevices, v.RfidUser, v.RfidPower, v.CameraUser}
-		res = append(res, d1)
+		d := []float64{
+			math.Round(v.Presence*100) / 100,
+			math.Round(v.ConnDevices*100) / 100,
+			math.Round(v.RfidUser*100) / 100,
+			math.Round(v.RfidPower*100) / 100,
+			math.Round(v.CameraUser*100) / 100,
+		}
+		data = append(data, d)
 	}
-	return res
+	return
 }
