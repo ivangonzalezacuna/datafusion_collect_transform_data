@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	// Initial array of data received from each sensor
+	// Array that stores the received data from each sensor
 	receivedData datafusion.CollectData
-	// Auxiliar array of data received from each sensor (to avoid re-write)
+	// Copy of ´receivedData´, done when the txFlag is deactivated, so that collecting new data will be possible while doing the prediction
 	receivedDataFinal datafusion.CollectData
 	// Struct generated from the received data of each sensor
 	generatedData datafusion.JoinedData
@@ -28,56 +28,65 @@ var (
 	trainData ml.TrainData
 	// Structrained Logistic Regression Model and other related data
 	trainModel ml.ModelData
+	// MQTT Client
+	mqttClient mqtt.Client
+	// txFlag is a global variable that allows or denies the transmission of data from each sensor
+	txFlag bool
+	// count is used to allow only one thread to activate the txFlag and deactivate it after some time
+	count int
 )
 
-var c mqtt.Client
-var txFlag bool
-var count int
-
-var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+var sensorDataListener mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	if !txFlag && count == 0 && trainModel.Model != nil {
 		count++
-		value := true
-		byteData, err := json.Marshal(value)
+		byteData, err := json.Marshal(true)
 		if err != nil {
 			log.Errorf(err.Error())
 			return
 		}
-		token := c.Publish("Node/Flag", 0, false, byteData)
+
+		token := mqttClient.Publish("Node/Flag", 0, false, byteData)
 		if token.Wait() && token.Error() != nil {
 			panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 		}
 
 		go func() {
-			viper.SetDefault("ml.window", 200)
+			viper.SetDefault("ml.window", 500)
 			sleepTime := viper.GetInt("ml.window")
 			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
-			value := false
-			byteData, err := json.Marshal(value)
+			byteData, err := json.Marshal(false)
 			if err != nil {
 				log.Errorf(err.Error())
 				return
 			}
-			log.Infof("[MQTT] Deactivating flag after 200ms!")
-			token := c.Publish("Node/Flag", 0, false, byteData)
+
+			log.Debugf("[MQTT] Deactivating flag after %dms!", sleepTime)
+			token := mqttClient.Publish("Node/Flag", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
+
 			receivedDataFinal = receivedData
 			log.Infof("[MQTT] Camera size: %v\nPresence size: %v\nRfid size: %v\nWifi size: %v\n",
 				len(receivedDataFinal.Camera), len(receivedDataFinal.Presence), len(receivedDataFinal.Rfid), len(receivedDataFinal.Wifi))
-			makePredictions()
+			err = makePredictions()
+			if err != nil {
+				log.Errorf(err.Error())
+			}
 			count--
 		}()
 	} else if txFlag {
 		log.Tracef("Received: %v", string(msg.Payload()))
 		split := strings.Split(msg.Topic(), "/")
 		sensor := split[len(split)-1]
-		receivedData.AddNewValue(msg.Payload(), strings.ToLower(sensor))
+		err := receivedData.AddNewValue(msg.Payload(), strings.ToLower(sensor))
+		if err != nil {
+			log.Errorf(err.Error())
+		}
 	}
 }
 
-var ff mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+var txFlagListener mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	err := json.Unmarshal(msg.Payload(), &txFlag)
 	if err != nil {
 		log.Errorf(err.Error())
@@ -113,8 +122,8 @@ func init() {
 	})
 
 	log.Infof("[MQTT] Connecting to MQTT broker...")
-	c = mqtt.NewClient(opts)
-	if token := c.Connect(); token.Wait() && token.Error() != nil {
+	mqttClient = mqtt.NewClient(opts)
+	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		log.Errorf(token.Error().Error())
 		os.Exit(400)
 	}
@@ -157,11 +166,11 @@ func readConfig() {
 
 func subscribeToTopics() error {
 	log.Infof("[MQTT] Subscribing to MQTT Topic...")
-	if token := c.Subscribe("Node/Sensor/+", 0, f); token.Wait() && token.Error() != nil {
+	if token := mqttClient.Subscribe("Node/Sensor/+", 0, sensorDataListener); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 
-	if token := c.Subscribe("Node/Flag", 0, ff); token.Wait() && token.Error() != nil {
+	if token := mqttClient.Subscribe("Node/Flag", 0, txFlagListener); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 	return nil
@@ -172,19 +181,15 @@ func main() {
 	fmt.Scanln()
 }
 
-func makePredictions() {
+func makePredictions() error {
 	t1 := time.Now()
 
 	// Calculate the AVG result / list of results from the whole data received from each sensor
 	generatedData = datafusion.JoinedData{}
-	generatedData.Camera.Sensor = "camera"
-	generatedData.GetFinalCameraValues(receivedDataFinal)
-	generatedData.Presence.Sensor = "presence"
-	generatedData.GetFinalPresenceValues(receivedDataFinal)
-	generatedData.Rfid.Sensor = "rfid"
-	generatedData.GetFinalRfidValues(receivedDataFinal)
-	generatedData.Wifi.Sensor = "camera"
-	generatedData.GetFinalWifiValues(receivedDataFinal)
+	err := generatedData.GetFinalValues(receivedDataFinal)
+	if err != nil {
+		return fmt.Errorf("Can't make prediction: %v", err.Error())
+	}
 
 	log.Debugf("[Prediction] CAMERA -> %#v", generatedData.Camera)
 	log.Debugf("[Prediction] PRESENCE -> %#v", generatedData.Presence)
@@ -195,26 +200,23 @@ func makePredictions() {
 	predictionDataStruct = datafusion.FinalData{}
 	predictionDataStruct.ObtainFinalData(generatedData)
 
-	t2 := time.Now()
-
-	result, _ := json.MarshalIndent(predictionDataStruct, "", "  ")
-	log.Infof("[Prediction] %v", string(result))
-
-	log.Infof("[Prediction] Time doing join and calculating final data array: %v", t2.Sub(t1))
+	result, err := json.MarshalIndent(predictionDataStruct, "", "  ")
+	if err != nil {
+		return err
+	}
+	log.Debugf("[Prediction] %v", string(result))
 
 	predictionData := predictionDataStruct.To2DFloatArray()
-	// var predictionData [][]float64
-	// data1 := []float64{76.32, 1.43, 1.43, 21.65, 12.98}
-	// data2 := []float64{76.32, 1.43, 71.43, 75.65, 12.98}
-	// data3 := []float64{25.32, 0.43, 1.43, 21.65, 35.98}
-	// data4 := []float64{28.32, 1.43, 1.43, 21.65, 89.98}
-	// predictionData = append(predictionData, data1, data2, data3, data4)
-	log.Infof("[Prediction] Obtained 2D Array to predict: %v", predictionData)
+	log.Debugf("[Prediction] Obtained 2D Array to predict: %v", predictionData)
 
 	prediction, err := trainModel.MakePrediction(predictionData)
 	if err != nil {
-		log.Errorf(err.Error())
+		return err
 	}
-
 	log.Infof("[Prediction] Result of prediction: %v", prediction)
+
+	t2 := time.Now()
+	log.Debugf("[Prediction] Time doing join and calculating final data array: %v", t2.Sub(t1))
+
+	return nil
 }
