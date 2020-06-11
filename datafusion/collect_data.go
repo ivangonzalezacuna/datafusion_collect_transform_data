@@ -42,14 +42,13 @@ type (
 )
 
 // AddNewValue adds a new entry in the sensor's received data slice
-func (c *CollectData) AddNewValue(payload []byte, topic string) {
+func (c *CollectData) AddNewValue(payload []byte, topic string) error {
 	switch topic {
 	case "camera":
 		var data cameraStruct
 		err := json.Unmarshal(payload, &data)
 		if err != nil {
-			log.Errorf(err.Error())
-			return
+			return err
 		}
 		c.Camera = append(c.Camera, data)
 		log.Tracef("Camera detected")
@@ -57,8 +56,7 @@ func (c *CollectData) AddNewValue(payload []byte, topic string) {
 		var data presenceStruct
 		err := json.Unmarshal(payload, &data)
 		if err != nil {
-			log.Errorf(err.Error())
-			return
+			return err
 		}
 		c.Presence = append(c.Presence, data)
 		log.Tracef("Presence detected")
@@ -66,8 +64,7 @@ func (c *CollectData) AddNewValue(payload []byte, topic string) {
 		var data rfidStruct
 		err := json.Unmarshal(payload, &data)
 		if err != nil {
-			log.Errorf(err.Error())
-			return
+			return err
 		}
 		c.Rfid = append(c.Rfid, data)
 		log.Tracef("RFID detected")
@@ -75,10 +72,10 @@ func (c *CollectData) AddNewValue(payload []byte, topic string) {
 		var data wifiStruct
 		err := json.Unmarshal(payload, &data)
 		if err != nil {
-			log.Errorf(err.Error())
-			return
+			return err
 		}
 		c.Wifi = append(c.Wifi, data)
 		log.Tracef("WiFi detected")
 	}
+	return nil
 }
