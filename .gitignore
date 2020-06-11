@@ -1,16 +1,6 @@
-# Compiled Object files, Static and Dynamic libs (Shared Objects)
-*.o
-*.a
-*.so
-
-# Folders
-_obj
-_test
-mainprocess
-ml_regression_tracking
-
+*
+!*.*
+!*/
+*.log
 *.exe
-*.test
-*.prof
-*.png
-*.txt
+ml_regression_tracking
