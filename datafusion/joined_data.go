@@ -47,9 +47,34 @@ type (
 	}
 )
 
-//GetFinalCameraValues obtains one struct using all the received data from the camera
-func (g *JoinedData) GetFinalCameraValues(data CollectData) error {
+// GetFinalValues obtains the final struct with final data from each sensor
+func (g *JoinedData) GetFinalValues(data CollectData) (err error) {
+	err = g.getCameraValues(data)
+	if err != nil {
+		return err
+	}
+
+	err = g.getPresenceValues(data)
+	if err != nil {
+		return err
+	}
+
+	err = g.getRfidValues(data)
+	if err != nil {
+		return err
+	}
+
+	err = g.getWifiValues(data)
+	if err != nil {
+		return err
+	}
+	return
+}
+
+func (g *JoinedData) getCameraValues(data CollectData) error {
+	g.Camera.Sensor = "camera"
 	if len(data.Camera) == 0 {
+		log.Warnf("Empty data received from the camera")
 		return nil
 	}
 	g.Camera.Timestamp = data.Camera[0].Timestamp
@@ -72,10 +97,10 @@ func (g *JoinedData) GetFinalCameraValues(data CollectData) error {
 	return nil
 }
 
-//GetFinalPresenceValues obtains one struct using all the received data from the presence detector
-func (g *JoinedData) GetFinalPresenceValues(data CollectData) error {
-	// generatedData.Presence.Sensor = "presence"
+func (g *JoinedData) getPresenceValues(data CollectData) error {
+	g.Presence.Sensor = "presence"
 	if len(data.Presence) == 0 {
+		log.Warnf("Empty data received from the presence detector")
 		return nil
 	}
 	g.Presence.Timestamp = data.Presence[0].Timestamp
@@ -93,10 +118,10 @@ func (g *JoinedData) GetFinalPresenceValues(data CollectData) error {
 	return nil
 }
 
-//GetFinalRfidValues obtains one struct using all the received data from the rfid reader
-func (g *JoinedData) GetFinalRfidValues(data CollectData) error {
-	// generatedData.Rfid.Sensor = "rfid"
+func (g *JoinedData) getRfidValues(data CollectData) error {
+	g.Rfid.Sensor = "rfid"
 	if len(data.Rfid) == 0 {
+		log.Warnf("Empty data received from the rfid reader")
 		return nil
 	}
 	g.Rfid.Timestamp = data.Rfid[0].Timestamp
@@ -122,14 +147,13 @@ func (g *JoinedData) GetFinalRfidValues(data CollectData) error {
 		g.Rfid.PersonCount = append(g.Rfid.PersonCount, rfidStructCountFinal{Person: k, Count: v.count, Power: powerAvg})
 		log.Debugf("RFID -> Person: %d , Data: %v\n", k, v)
 	}
-
 	return nil
 }
 
-//GetFinalWifiValues obtains one struct using all the received data from the wifi
-func (g *JoinedData) GetFinalWifiValues(data CollectData) error {
-	// generatedData.Wifi.Sensor = "wifi"
+func (g *JoinedData) getWifiValues(data CollectData) error {
+	g.Wifi.Sensor = "wifi"
 	if len(data.Wifi) == 0 {
+		log.Warnf("Empty data received from the wifi")
 		return nil
 	}
 	g.Wifi.Timestamp = data.Wifi[0].Timestamp
