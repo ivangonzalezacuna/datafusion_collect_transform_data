@@ -22,8 +22,8 @@ var (
 		log.Infof("[MQTT] TxFlag updated to ´%v´", txFlag)
 	}
 
-	c      mqtt.Client
-	txFlag bool
+	mqttClient mqtt.Client
+	txFlag     bool
 
 	server      string = "tcp://127.0.0.1:1883"
 	clientID    string = "sensor-client"
@@ -47,8 +47,8 @@ func init() {
 	})
 
 	log.Infof("[MQTT] Connecting to MQTT broker...")
-	c = mqtt.NewClient(opts)
-	if token := c.Connect(); token.Wait() && token.Error() != nil {
+	mqttClient = mqtt.NewClient(opts)
+	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		log.Errorf(token.Error().Error())
 		os.Exit(400)
 	}
@@ -56,16 +56,14 @@ func init() {
 
 func subscribeToTopics() error {
 	log.Infof("[MQTT] Subscribing to MQTT Topic...")
-	if token := c.Subscribe("Node/Flag", 0, txFlagListener); token.Wait() && token.Error() != nil {
+	if token := mqttClient.Subscribe("Node/Flag", 0, txFlagListener); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 	return nil
 }
 
 func main() {
-	k := 0
-	for k < 30 {
-		k++
+	for {
 		// Send data for each sensor (random data)
 		go auxSendCamera()
 		go auxSendPresence()
@@ -91,7 +89,7 @@ func auxSendCamera() {
 			return
 		}
 		if txFlag {
-			token := c.Publish("Node/Sensor/Camera", 0, false, byteData)
+			token := mqttClient.Publish("Node/Sensor/Camera", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
@@ -114,7 +112,7 @@ func auxSendCamera() {
 			return
 		}
 		if txFlag {
-			token := c.Publish("Node/Sensor/Camera", 0, false, byteData)
+			token := mqttClient.Publish("Node/Sensor/Camera", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
@@ -137,7 +135,7 @@ func auxSendCamera() {
 			return
 		}
 		if txFlag {
-			token := c.Publish("Node/Sensor/Camera", 0, false, byteData)
+			token := mqttClient.Publish("Node/Sensor/Camera", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
@@ -151,9 +149,12 @@ func auxSendCamera() {
 
 func auxSendPresence() {
 	i := 0
-	for i < 60 {
+	min := 1
+	max := 6
+	for i < max {
+		module := rand.Intn(max-min) + min
 		timestamp := 123456789 + i
-		detection := (i%7 == 0) // || (i%3 == 0)
+		detection := (i%module == 0)
 		data := map[string]interface{}{
 			"sensor":    "presence",
 			"timestamp": strconv.Itoa(timestamp),
@@ -165,7 +166,7 @@ func auxSendPresence() {
 			return
 		}
 		if txFlag || (!txFlag && detection) {
-			token := c.Publish("Node/Sensor/Presence", 0, false, byteData)
+			token := mqttClient.Publish("Node/Sensor/Presence", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
@@ -196,7 +197,7 @@ func auxSendRfid() {
 			return
 		}
 		if txFlag || (!txFlag && (power >= 60)) {
-			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
+			token := mqttClient.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
@@ -221,7 +222,7 @@ func auxSendRfid() {
 			return
 		}
 		if txFlag || (!txFlag && (power >= 60)) {
-			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
+			token := mqttClient.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
@@ -246,7 +247,7 @@ func auxSendRfid() {
 			return
 		}
 		if txFlag || (!txFlag && (power >= 60)) {
-			token := c.Publish("Node/Sensor/Rfid", 0, false, byteData)
+			token := mqttClient.Publish("Node/Sensor/Rfid", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
@@ -276,7 +277,7 @@ func auxSendWifi() {
 			return
 		}
 		if txFlag || (!txFlag && (devices >= 2)) {
-			token := c.Publish("Node/Sensor/Wifi", 0, false, byteData)
+			token := mqttClient.Publish("Node/Sensor/Wifi", 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
