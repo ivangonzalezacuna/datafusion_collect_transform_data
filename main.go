@@ -8,9 +8,9 @@ import (
 	"time"
 
 	datafusion "mainprocess/datafusion"
-	ml "mainprocess/ml_regression_tracking"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	ml "github.com/ivangonzalezacuna/ml_regression_tracking"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -217,6 +217,24 @@ func makePredictions() error {
 
 	t2 := time.Now()
 	log.Debugf("[Prediction] Time doing join and calculating final data array: %v", t2.Sub(t1))
+
+	if len(prediction) != len(predictionDataStruct) {
+		return fmt.Errorf("Prediction results sizes mismatch")
+	}
+	for k := range predictionDataStruct {
+		if prediction[k] == 1 {
+			predictionDataStruct[k].Detection = true
+			byteData, err := json.Marshal(predictionDataStruct[k])
+			if err != nil {
+				return err
+			}
+			topic := fmt.Sprintf("Node/Node_%v/Tracking/Detection", predictionDataStruct[k].Person)
+			token := mqttClient.Publish(topic, 0, false, byteData)
+			if token.Wait() && token.Error() != nil {
+				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+			}
+		}
+	}
 
 	return nil
 }

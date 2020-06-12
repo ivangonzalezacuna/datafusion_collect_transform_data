@@ -16,6 +16,7 @@ type (
 		RfidUser    float64 `json:"rfiduser"`
 		RfidPower   float64 `json:"power"`
 		CameraUser  float64 `json:"camerauser"`
+		Detection   bool    `json:"detection"`
 	}
 
 	//FinalData to test
@@ -69,8 +70,9 @@ func (f *FinalData) ObtainFinalData(data JoinedData) {
 			currentData := PredictionDataStruct{
 				Timestamp:   finalTimestamp,
 				Person:      k,
-				Presence:    data.Presence.Detection,
-				ConnDevices: data.Wifi.ConnectedDevices,
+				Presence:    math.Round(data.Presence.Detection*100) / 100,
+				ConnDevices: math.Round(data.Wifi.ConnectedDevices*100) / 100,
+				Detection:   false,
 			}
 			if val, ok := avgRfidUserMap[k]; ok {
 				currentData.setPersonData(val, v, data)
@@ -88,8 +90,9 @@ func (f *FinalData) ObtainFinalData(data JoinedData) {
 			currentData := PredictionDataStruct{
 				Timestamp:   finalTimestamp,
 				Person:      k,
-				Presence:    data.Presence.Detection,
-				ConnDevices: data.Wifi.ConnectedDevices,
+				Presence:    math.Round(data.Presence.Detection*100) / 100,
+				ConnDevices: math.Round(data.Wifi.ConnectedDevices*100) / 100,
+				Detection:   false,
 			}
 			if val, ok := avgCameraUserMap[k]; ok {
 				currentData.setPersonData(v, val, data)
@@ -104,12 +107,12 @@ func (f *FinalData) ObtainFinalData(data JoinedData) {
 }
 
 func (f *PredictionDataStruct) setPersonData(rfidUser, camUser float64, data JoinedData) {
-	f.RfidUser = rfidUser * 100
-	f.CameraUser = camUser * 100
+	f.RfidUser = math.Round(rfidUser*100*100) / 100
+	f.CameraUser = math.Round(camUser*100*100) / 100
 
 	for _, data := range data.Rfid.PersonCount {
 		if data.Person == f.Person {
-			f.RfidPower = data.Power
+			f.RfidPower = math.Round(data.Power*100) / 100
 		}
 	}
 	log.Tracef("Current Data info: %#v", f)
@@ -128,11 +131,11 @@ func (f *FinalData) isPersonEntryCreated(person int) bool {
 func (f *FinalData) To2DFloatArray() (data [][]float64) {
 	for _, v := range *f {
 		d := []float64{
-			math.Round(v.Presence*100) / 100,
-			math.Round(v.ConnDevices*100) / 100,
-			math.Round(v.RfidUser*100) / 100,
-			math.Round(v.RfidPower*100) / 100,
-			math.Round(v.CameraUser*100) / 100,
+			v.Presence,
+			v.ConnDevices,
+			v.RfidUser,
+			v.RfidPower,
+			v.CameraUser,
 		}
 		data = append(data, d)
 	}
