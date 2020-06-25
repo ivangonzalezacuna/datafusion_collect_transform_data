@@ -10,6 +10,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -25,15 +26,26 @@ var (
 	mqttClient mqtt.Client
 	txFlag     bool
 
-	server      string = "tcp://127.0.0.1:1883"
-	clientID    string = "sensor-client"
-	keepAlive   int    = 10
-	pingTimeout int    = 1
+	topicCamera   = "/Nodes/Node_ID/Tracking/Sensor/Camera"
+	topicPresence = "/Nodes/Node_ID/Tracking/Sensor/Presence"
+	topicRfid     = "/Nodes/Node_ID/Tracking/Sensor/Rfid"
+	topicWifi     = "/Nodes/Node_ID/Tracking/Sensor/Wifi"
+	topicTxFlag   = "/Nodes/Node_ID/Tracking/TxFlag"
 )
 
 func init() {
 	log.SetLevel(log.DebugLevel)
 	txFlag = false
+
+	readConfig()
+	viper.SetDefault("mqtt.server", "tcp://127.0.0.1:1883")
+	server := viper.GetString("mqtt.server")
+	viper.SetDefault("mqtt.clientId", "tool-control-client")
+	clientID := viper.GetString("mqtt.clientId")
+	viper.SetDefault("mqtt.keepAlive", 2)
+	keepAlive := viper.GetInt("mqtt.keepAlive")
+	viper.SetDefault("mqtt.pingTimeout", 1)
+	pingTimeout := viper.GetInt("mqtt.pingTimeout")
 
 	opts := mqtt.NewClientOptions().AddBroker(server).SetClientID(clientID)
 	opts.SetKeepAlive(time.Duration(keepAlive) * time.Second)
@@ -54,9 +66,19 @@ func init() {
 	}
 }
 
+func readConfig() {
+	cfgFile := "config.toml"
+	viper.SetConfigFile(cfgFile)
+	if err := viper.ReadInConfig(); err != nil {
+		log.Errorf("[Init] Unable to read config from file %s: %s", cfgFile, err.Error())
+	} else {
+		log.Infof("[Init] Read configuration from file %s", cfgFile)
+	}
+}
+
 func subscribeToTopics() error {
 	log.Infof("[MQTT] Subscribing to MQTT Topic...")
-	if token := mqttClient.Subscribe("Node/Flag", 0, txFlagListener); token.Wait() && token.Error() != nil {
+	if token := mqttClient.Subscribe(topicTxFlag, 0, txFlagListener); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 	return nil
@@ -64,7 +86,6 @@ func subscribeToTopics() error {
 
 func main() {
 	for {
-		// Send data for each sensor (random data)
 		go auxSendCamera()
 		go auxSendPresence()
 		go auxSendRfid()
@@ -89,9 +110,9 @@ func auxSendCamera() {
 			return
 		}
 		if txFlag {
-			token := mqttClient.Publish("Node/Sensor/Camera", 0, false, byteData)
+			token := mqttClient.Publish(topicCamera, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		} else {
 			log.Warnf("Unable to send Camera data")
@@ -112,9 +133,9 @@ func auxSendCamera() {
 			return
 		}
 		if txFlag {
-			token := mqttClient.Publish("Node/Sensor/Camera", 0, false, byteData)
+			token := mqttClient.Publish(topicCamera, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		} else {
 			log.Warnf("Unable to send Camera data")
@@ -135,9 +156,9 @@ func auxSendCamera() {
 			return
 		}
 		if txFlag {
-			token := mqttClient.Publish("Node/Sensor/Camera", 0, false, byteData)
+			token := mqttClient.Publish(topicCamera, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		} else {
 			log.Warnf("Unable to send Camera data")
@@ -166,9 +187,9 @@ func auxSendPresence() {
 			return
 		}
 		if txFlag || (!txFlag && detection) {
-			token := mqttClient.Publish("Node/Sensor/Presence", 0, false, byteData)
+			token := mqttClient.Publish(topicPresence, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		} else {
 			log.Warnf("Unable to send Presence data")
@@ -197,9 +218,9 @@ func auxSendRfid() {
 			return
 		}
 		if txFlag || (!txFlag && (power >= 60)) {
-			token := mqttClient.Publish("Node/Sensor/Rfid", 0, false, byteData)
+			token := mqttClient.Publish(topicRfid, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		} else {
 			log.Warnf("Unable to send Rfid data")
@@ -222,9 +243,9 @@ func auxSendRfid() {
 			return
 		}
 		if txFlag || (!txFlag && (power >= 60)) {
-			token := mqttClient.Publish("Node/Sensor/Rfid", 0, false, byteData)
+			token := mqttClient.Publish(topicRfid, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		} else {
 			log.Warnf("Unable to send Rfid data")
@@ -247,9 +268,9 @@ func auxSendRfid() {
 			return
 		}
 		if txFlag || (!txFlag && (power >= 60)) {
-			token := mqttClient.Publish("Node/Sensor/Rfid", 0, false, byteData)
+			token := mqttClient.Publish(topicRfid, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		} else {
 			log.Warnf("Unable to send Rfid data")
@@ -277,9 +298,9 @@ func auxSendWifi() {
 			return
 		}
 		if txFlag || (!txFlag && (devices >= 2)) {
-			token := mqttClient.Publish("Node/Sensor/Wifi", 0, false, byteData)
+			token := mqttClient.Publish(topicWifi, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		} else {
 			log.Warnf("Unable to send Wifi data")

@@ -34,36 +34,43 @@ var (
 	txFlag bool
 	// count is used to allow only one thread to activate the txFlag and deactivate it after some time
 	count int
+
+	// Topic names used in the system
+	topicSensor = "/Nodes/Node_ID/Tracking/Sensor/+"
+	topicTxFlag = "/Nodes/Node_ID/Tracking/TxFlag"
+	toolTopic   = "/Nodes/Node_%v/Tracking/Detection"
 )
 
 var sensorDataListener mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	if !txFlag && count == 0 && trainModel.Model != nil {
 		count++
-		byteData, err := json.Marshal(true)
+		txFlag = true
+		byteData, err := json.Marshal(txFlag)
 		if err != nil {
 			log.Errorf(err.Error())
 			return
 		}
 
-		token := mqttClient.Publish("Node/Flag", 0, false, byteData)
+		token := mqttClient.Publish(topicTxFlag, 0, false, byteData)
 		if token.Wait() && token.Error() != nil {
-			panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+			log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 		}
 
 		go func() {
 			viper.SetDefault("ml.window", 500)
 			sleepTime := viper.GetInt("ml.window")
 			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
-			byteData, err := json.Marshal(false)
+			txFlag = false
+			byteData, err := json.Marshal(txFlag)
 			if err != nil {
 				log.Errorf(err.Error())
 				return
 			}
 
 			log.Debugf("[MQTT] Deactivating flag after %dms!", sleepTime)
-			token := mqttClient.Publish("Node/Flag", 0, false, byteData)
+			token := mqttClient.Publish(topicTxFlag, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 
 			receivedDataFinal = receivedData
@@ -84,15 +91,6 @@ var sensorDataListener mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.M
 			log.Errorf(err.Error())
 		}
 	}
-}
-
-var txFlagListener mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	err := json.Unmarshal(msg.Payload(), &txFlag)
-	if err != nil {
-		log.Errorf(err.Error())
-		return
-	}
-	log.Infof("[MQTT] TxFlag updated to ´%v´", txFlag)
 }
 
 func init() {
@@ -166,11 +164,7 @@ func readConfig() {
 
 func subscribeToTopics() error {
 	log.Infof("[MQTT] Subscribing to MQTT Topic...")
-	if token := mqttClient.Subscribe("Node/Sensor/+", 0, sensorDataListener); token.Wait() && token.Error() != nil {
-		return token.Error()
-	}
-
-	if token := mqttClient.Subscribe("Node/Flag", 0, txFlagListener); token.Wait() && token.Error() != nil {
+	if token := mqttClient.Subscribe(topicSensor, 0, sensorDataListener); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 	return nil
@@ -228,10 +222,10 @@ func makePredictions() error {
 			if err != nil {
 				return err
 			}
-			topic := fmt.Sprintf("Node/Node_%v/Tracking/Detection", predictionDataStruct[k].Person)
+			topic := fmt.Sprintf(toolTopic, predictionDataStruct[k].Person)
 			token := mqttClient.Publish(topic, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
-				panic(fmt.Sprintf("Error publishing: %v", token.Error()))
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
 			}
 		}
 	}

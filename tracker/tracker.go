@@ -9,6 +9,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -20,23 +21,30 @@ var (
 			return
 		}
 		topicList := strings.Split(msg.Topic(), "/")
-		if len(topicList) == 4 {
-			go checkPermissions(data, topicList[1])
+		if len(topicList) == 5 {
+			go checkPermissions(data, topicList[2])
 		}
 	}
 
 	mqttClient mqtt.Client
 	txFlag     bool
 
-	server      string = "tcp://127.0.0.1:1883"
-	clientID    string = "database-client"
-	keepAlive   int    = 10
-	pingTimeout int    = 1
+	toolTopic = "/Nodes/+/Tracking/Detection"
 )
 
 func init() {
 	log.SetLevel(log.DebugLevel)
 	txFlag = false
+
+	readConfig()
+	viper.SetDefault("mqtt.server", "tcp://127.0.0.1:1883")
+	server := viper.GetString("mqtt.server")
+	viper.SetDefault("mqtt.clientId", "tool-control-client")
+	clientID := viper.GetString("mqtt.clientId")
+	viper.SetDefault("mqtt.keepAlive", 2)
+	keepAlive := viper.GetInt("mqtt.keepAlive")
+	viper.SetDefault("mqtt.pingTimeout", 1)
+	pingTimeout := viper.GetInt("mqtt.pingTimeout")
 
 	opts := mqtt.NewClientOptions().AddBroker(server).SetClientID(clientID)
 	opts.SetKeepAlive(time.Duration(keepAlive) * time.Second)
@@ -57,9 +65,19 @@ func init() {
 	}
 }
 
+func readConfig() {
+	cfgFile := "config.toml"
+	viper.SetConfigFile(cfgFile)
+	if err := viper.ReadInConfig(); err != nil {
+		log.Errorf("[Init] Unable to read config from file %s: %s", cfgFile, err.Error())
+	} else {
+		log.Infof("[Init] Read configuration from file %s", cfgFile)
+	}
+}
+
 func subscribeToTopics() error {
 	log.Infof("[MQTT] Subscribing to MQTT Topic...")
-	if token := mqttClient.Subscribe("Node/+/Tracking/Detection", 0, newDetectionListener); token.Wait() && token.Error() != nil {
+	if token := mqttClient.Subscribe(toolTopic, 0, newDetectionListener); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 	return nil
