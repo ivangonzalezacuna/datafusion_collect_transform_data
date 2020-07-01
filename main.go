@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/user"
+	"path"
 	"strings"
 	"time"
 
@@ -57,7 +59,7 @@ var sensorDataListener mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.M
 		}
 
 		go func() {
-			viper.SetDefault("ml.window", 500)
+			viper.SetDefault("ml.window", 350)
 			sleepTime := viper.GetInt("ml.window")
 			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 			txFlag = false
@@ -101,9 +103,9 @@ func init() {
 	readConfig()
 	viper.SetDefault("mqtt.server", "tcp://127.0.0.1:1883")
 	server := viper.GetString("mqtt.server")
-	viper.SetDefault("mqtt.clientId", "test-client")
-	clientID := viper.GetString("mqtt.clientId")
-	viper.SetDefault("mqtt.keepAlive", 2)
+	viper.SetDefault("mqtt.mainclientid", "main-client")
+	clientID := viper.GetString("mqtt.mainclientid")
+	viper.SetDefault("mqtt.keepAlive", 10)
 	keepAlive := viper.GetInt("mqtt.keepAlive")
 	viper.SetDefault("mqtt.pingTimeout", 1)
 	pingTimeout := viper.GetInt("mqtt.pingTimeout")
@@ -134,9 +136,9 @@ func init() {
 }
 
 func generateTrainData() error {
-	viper.SetDefault("ml.trainFile", "")
+	viper.SetDefault("ml.trainFile", "/data/train.csv")
 	trainFile := viper.GetString("ml.trainFile")
-	viper.SetDefault("ml.testFile", "")
+	viper.SetDefault("ml.testFile", "/data/test.csv")
 	testFile := viper.GetString("ml.testFile")
 	trainData, err := ml.LoadTrainDataFromCSV(trainFile, testFile)
 	if err != nil {
@@ -153,12 +155,30 @@ func generateTrainData() error {
 }
 
 func readConfig() {
-	cfgFile := "config.toml"
-	viper.SetConfigFile(cfgFile)
+	userDir, err := user.Current()
+	if err != nil {
+		log.Errorf(err.Error())
+	}
+
+	configDir := path.Join(userDir.HomeDir, ".config", "ml-system")
+	_, err = os.Stat(configDir)
+	if os.IsNotExist(err) {
+		errDir := os.MkdirAll(configDir, 0755)
+		if errDir != nil {
+			log.Errorf(err.Error())
+		}
+	}
+
+	cfgFileDir := path.Join(configDir, "config.toml")
+	_, err = os.OpenFile("access.log", os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	viper.SetConfigFile(cfgFileDir)
 	if err := viper.ReadInConfig(); err != nil {
-		log.Errorf("[Init] Unable to read config from file %s: %s", cfgFile, err.Error())
+		log.Errorf("[Init] Unable to read config from file %s: %s", cfgFileDir, err.Error())
 	} else {
-		log.Infof("[Init] Read configuration from file %s", cfgFile)
+		log.Infof("[Init] Read configuration from file %s", cfgFileDir)
 	}
 }
 

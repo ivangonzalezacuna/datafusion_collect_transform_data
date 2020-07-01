@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/user"
+	"path"
 	"strconv"
 	"time"
 
@@ -40,8 +42,8 @@ func init() {
 	readConfig()
 	viper.SetDefault("mqtt.server", "tcp://127.0.0.1:1883")
 	server := viper.GetString("mqtt.server")
-	viper.SetDefault("mqtt.clientId", "tool-control-client")
-	clientID := viper.GetString("mqtt.clientId")
+	viper.SetDefault("mqtt.sensorclientid", "sensor-client")
+	clientID := viper.GetString("mqtt.sensorclientid")
 	viper.SetDefault("mqtt.keepAlive", 2)
 	keepAlive := viper.GetInt("mqtt.keepAlive")
 	viper.SetDefault("mqtt.pingTimeout", 1)
@@ -67,12 +69,30 @@ func init() {
 }
 
 func readConfig() {
-	cfgFile := "config.toml"
-	viper.SetConfigFile(cfgFile)
+	userDir, err := user.Current()
+	if err != nil {
+		log.Errorf(err.Error())
+	}
+
+	configDir := path.Join(userDir.HomeDir, ".config", "ml-system")
+	_, err = os.Stat(configDir)
+	if os.IsNotExist(err) {
+		errDir := os.MkdirAll(configDir, 0755)
+		if errDir != nil {
+			log.Errorf(err.Error())
+		}
+	}
+
+	cfgFileDir := path.Join(configDir, "config.toml")
+	_, err = os.OpenFile("access.log", os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	viper.SetConfigFile(cfgFileDir)
 	if err := viper.ReadInConfig(); err != nil {
-		log.Errorf("[Init] Unable to read config from file %s: %s", cfgFile, err.Error())
+		log.Errorf("[Init] Unable to read config from file %s: %s", cfgFileDir, err.Error())
 	} else {
-		log.Infof("[Init] Read configuration from file %s", cfgFile)
+		log.Infof("[Init] Read configuration from file %s", cfgFileDir)
 	}
 }
 
