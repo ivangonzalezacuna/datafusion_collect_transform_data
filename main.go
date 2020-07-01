@@ -33,9 +33,9 @@ var (
 	// MQTT Client
 	mqttClient mqtt.Client
 	// txFlag is a global variable that allows or denies the transmission of data from each sensor
-	txFlag bool
+	txFlag = false
 	// count is used to allow only one thread to activate the txFlag and deactivate it after some time
-	count int
+	count = 0
 
 	// Topic names used in the system
 	topicSensor = "/Nodes/Node_ID/Tracking/Sensor/+"
@@ -99,8 +99,6 @@ var sensorDataListener mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.M
 
 func init() {
 	log.SetLevel(log.DebugLevel)
-	txFlag = false
-	count = 0
 
 	readConfig()
 	viper.SetDefault("mqtt.server", "tcp://127.0.0.1:1883")
@@ -180,7 +178,7 @@ func readConfig() {
 	}
 
 	cfgFileDir := path.Join(configDir, "config.toml")
-	file, err := os.OpenFile("access.log", os.O_CREATE|os.O_WRONLY, 0755)
+	file, err := os.OpenFile(cfgFileDir, os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
 		log.Errorf(err.Error())
 	}

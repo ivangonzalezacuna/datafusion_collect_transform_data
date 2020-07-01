@@ -88,7 +88,7 @@ func readConfig() {
 	}
 
 	cfgFileDir := path.Join(configDir, "config.toml")
-	_, err = os.OpenFile("access.log", os.O_CREATE|os.O_WRONLY, 0644)
+	_, err = os.OpenFile(cfgFileDir, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
