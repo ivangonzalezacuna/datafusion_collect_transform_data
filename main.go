@@ -61,6 +61,8 @@ var sensorDataListener mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.M
 		go func() {
 			viper.SetDefault("ml.window", 350)
 			sleepTime := viper.GetInt("ml.window")
+			viper.Set("ml.window", sleepTime)
+			viper.WriteConfig()
 			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 			txFlag = false
 			byteData, err := json.Marshal(txFlag)
@@ -103,12 +105,17 @@ func init() {
 	readConfig()
 	viper.SetDefault("mqtt.server", "tcp://127.0.0.1:1883")
 	server := viper.GetString("mqtt.server")
+	viper.Set("mqtt.server", server)
 	viper.SetDefault("mqtt.mainclientid", "main-client")
 	clientID := viper.GetString("mqtt.mainclientid")
+	viper.Set("mqtt.mainclientid", clientID)
 	viper.SetDefault("mqtt.keepAlive", 10)
 	keepAlive := viper.GetInt("mqtt.keepAlive")
+	viper.Set("mqtt.keepAlive", keepAlive)
 	viper.SetDefault("mqtt.pingTimeout", 1)
 	pingTimeout := viper.GetInt("mqtt.pingTimeout")
+	viper.Set("mqtt.pingTimeout", pingTimeout)
+	viper.WriteConfig()
 
 	opts := mqtt.NewClientOptions().AddBroker(server).SetClientID(clientID)
 	opts.SetKeepAlive(time.Duration(keepAlive) * time.Second)
@@ -136,10 +143,13 @@ func init() {
 }
 
 func generateTrainData() error {
-	viper.SetDefault("ml.trainFile", "/data/train.csv")
+	viper.SetDefault("ml.trainFile", "./data/train.csv")
 	trainFile := viper.GetString("ml.trainFile")
-	viper.SetDefault("ml.testFile", "/data/test.csv")
+	viper.Set("ml.trainFile", trainFile)
+	viper.SetDefault("ml.testFile", "./data/test.csv")
 	testFile := viper.GetString("ml.testFile")
+	viper.Set("ml.testFile", testFile)
+	viper.WriteConfig()
 	trainData, err := ml.LoadTrainDataFromCSV(trainFile, testFile)
 	if err != nil {
 		return err
@@ -170,9 +180,13 @@ func readConfig() {
 	}
 
 	cfgFileDir := path.Join(configDir, "config.toml")
-	_, err = os.OpenFile("access.log", os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile("access.log", os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf(err.Error())
+	}
+	err = file.Close()
+	if err != nil {
+		log.Errorf(err.Error())
 	}
 	viper.SetConfigFile(cfgFileDir)
 	if err := viper.ReadInConfig(); err != nil {
