@@ -307,13 +307,16 @@ func auxSendRfid() {
 
 func auxSendWifi() {
 	i := 0
+	min := -70
+	max := -20
 	for i < 20 {
 		timestamp := 123456789 + i
-
+		power := float64(rand.Intn(max-min) + min)
 		data := map[string]interface{}{
 			"sensor":    "wifi",
 			"timestamp": strconv.Itoa(timestamp),
 			"person":    5,
+			"rssi":      power,
 		}
 		byteData, err := json.Marshal(data)
 		if err != nil {
@@ -333,10 +336,12 @@ func auxSendWifi() {
 	}
 	for i < 35 {
 		timestamp := 123456789 + i
+		power := float64(rand.Intn(max-min) + min)
 		data := map[string]interface{}{
 			"sensor":    "wifi",
 			"timestamp": strconv.Itoa(timestamp),
 			"person":    7,
+			"rssi":      power,
 		}
 		byteData, err := json.Marshal(data)
 		if err != nil {

@@ -28,8 +28,8 @@ type (
 	}
 	rfidStructCountFinal struct {
 		Count  int     `json:"count"`
-		Power  float64 `json:"power"`
 		Person int     `json:"person"`
+		Power  float64 `json:"power"`
 	}
 
 	wifiStructFinal struct {
@@ -38,8 +38,9 @@ type (
 		PersonCount []wifiStructCountFinal `json:"personcount"`
 	}
 	wifiStructCountFinal struct {
-		Count  int `json:"count"`
-		Person int `json:"person"`
+		Count  int     `json:"count"`
+		Person int     `json:"person"`
+		Rssi   float64 `json:"rssi"`
 	}
 
 	// JoinedData stores the final data fusion from the sensors
@@ -151,6 +152,7 @@ func (g *JoinedData) getRfidValues(data CollectData) error {
 		g.Rfid.PersonCount = append(g.Rfid.PersonCount, rfidStructCountFinal{Person: k, Count: v.count, Power: powerAvg})
 		log.Debugf("RFID -> Person: %d , Data: %v\n", k, v)
 	}
+
 	return nil
 }
 
@@ -162,19 +164,26 @@ func (g *JoinedData) getWifiValues(data CollectData) error {
 	}
 	g.Wifi.Timestamp = data.Wifi[0].Timestamp
 
-	peopleCount := make(map[int]int)
+	peopleCount := make(map[int]struct {
+		count int
+		total float64
+	})
 	for _, v := range data.Wifi {
-		if _, exist := peopleCount[v.Person]; exist {
-			peopleCount[v.Person]++
+		if data, exist := peopleCount[v.Person]; exist {
+			data.count++
+			data.total += v.Rssi
+			peopleCount[v.Person] = data
 		} else {
-			peopleCount[v.Person] = 1
+			data.count = 1
+			data.total = v.Rssi
+			peopleCount[v.Person] = data
 		}
 	}
 
 	for k, v := range peopleCount {
-		currentCount := wifiStructCountFinal{Person: k, Count: v}
-		g.Wifi.PersonCount = append(g.Wifi.PersonCount, currentCount)
-		log.Debugf("WIFI -> Person : %d , Count : %d\n", k, v)
+		rssiAvg := v.total / float64(v.count)
+		g.Wifi.PersonCount = append(g.Wifi.PersonCount, wifiStructCountFinal{Person: k, Count: v.count, Rssi: rssiAvg})
+		log.Debugf("WIFI -> Person: %d , Data: %v\n", k, v)
 	}
 
 	return nil

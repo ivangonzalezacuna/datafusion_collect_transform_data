@@ -16,6 +16,7 @@ type (
 		RfidPower  float64 `json:"power"`
 		CameraUser float64 `json:"camerauser"`
 		WifiUser   float64 `json:"wifiuser"`
+		WifiRssi   float64 `json:"wifirssi"`
 		Detection  bool    `json:"detection"`
 	}
 
@@ -166,6 +167,11 @@ func (f *PredictionDataStruct) setPersonData(rfidUser, camUser, wifiUser float64
 			f.RfidPower = math.Round(data.Power*100) / 100
 		}
 	}
+	for _, data := range data.Wifi.PersonCount {
+		if data.Person == f.Person {
+			f.WifiRssi = math.Round(data.Rssi*100) / 100
+		}
+	}
 	log.Tracef("Current Data info: %#v", f)
 }
 
@@ -184,6 +190,7 @@ func (f *FinalData) To2DFloatArray() (data [][]float64) {
 		d := []float64{
 			v.Presence,
 			v.WifiUser,
+			v.WifiRssi,
 			v.RfidUser,
 			v.RfidPower,
 			v.CameraUser,

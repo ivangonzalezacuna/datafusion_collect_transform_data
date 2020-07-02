@@ -22,14 +22,15 @@ type (
 	rfidStruct struct {
 		Sensor    string  `json:"sensor"`
 		Timestamp string  `json:"timestamp"`
-		Power     float64 `json:"power"`
 		Person    int     `json:"person"`
+		Power     float64 `json:"power"`
 	}
 
 	wifiStruct struct {
-		Sensor    string `json:"sensor"`
-		Timestamp string `json:"timestamp"`
-		Person    int    `json:"person"`
+		Sensor    string  `json:"sensor"`
+		Timestamp string  `json:"timestamp"`
+		Person    int     `json:"person"`
+		Rssi      float64 `json:"rssi"`
 	}
 
 	// CollectData stores all the structs with received data
