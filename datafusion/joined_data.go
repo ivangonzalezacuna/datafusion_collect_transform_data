@@ -33,9 +33,13 @@ type (
 	}
 
 	wifiStructFinal struct {
-		Sensor           string  `json:"sensor"`
-		Timestamp        string  `json:"timestamp"`
-		ConnectedDevices float64 `json:"connecteddevices"`
+		Sensor      string                 `json:"sensor"`
+		Timestamp   string                 `json:"timestamp"`
+		PersonCount []wifiStructCountFinal `json:"personcount"`
+	}
+	wifiStructCountFinal struct {
+		Count  int `json:"count"`
+		Person int `json:"person"`
 	}
 
 	// JoinedData stores the final data fusion from the sensors
@@ -158,13 +162,20 @@ func (g *JoinedData) getWifiValues(data CollectData) error {
 	}
 	g.Wifi.Timestamp = data.Wifi[0].Timestamp
 
-	var totalConnDevices int = 0
+	peopleCount := make(map[int]int)
 	for _, v := range data.Wifi {
-		totalConnDevices += v.ConnectedDevices
+		if _, exist := peopleCount[v.Person]; exist {
+			peopleCount[v.Person]++
+		} else {
+			peopleCount[v.Person] = 1
+		}
 	}
-	devicesAvg := float64(totalConnDevices) / float64(len(data.Wifi))
-	log.Debugf("WiFi AVG: %f", devicesAvg)
-	g.Wifi.ConnectedDevices = devicesAvg
+
+	for k, v := range peopleCount {
+		currentCount := wifiStructCountFinal{Person: k, Count: v}
+		g.Wifi.PersonCount = append(g.Wifi.PersonCount, currentCount)
+		log.Debugf("WIFI -> Person : %d , Count : %d\n", k, v)
+	}
 
 	return nil
 }

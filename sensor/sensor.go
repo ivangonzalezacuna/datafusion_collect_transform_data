@@ -309,20 +309,41 @@ func auxSendWifi() {
 	i := 0
 	for i < 20 {
 		timestamp := 123456789 + i
-		min := 0
-		max := 3
-		devices := rand.Intn(max-min) + min
+
 		data := map[string]interface{}{
-			"sensor":           "wifi",
-			"timestamp":        strconv.Itoa(timestamp),
-			"connecteddevices": devices,
+			"sensor":    "wifi",
+			"timestamp": strconv.Itoa(timestamp),
+			"person":    5,
 		}
 		byteData, err := json.Marshal(data)
 		if err != nil {
 			log.Errorf(err.Error())
 			return
 		}
-		if txFlag || (!txFlag && (devices >= 2)) {
+		if txFlag {
+			token := mqttClient.Publish(topicWifi, 0, false, byteData)
+			if token.Wait() && token.Error() != nil {
+				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
+			}
+		} else {
+			log.Warnf("Unable to send Wifi data")
+		}
+		time.Sleep(1 * time.Millisecond)
+		i++
+	}
+	for i < 35 {
+		timestamp := 123456789 + i
+		data := map[string]interface{}{
+			"sensor":    "wifi",
+			"timestamp": strconv.Itoa(timestamp),
+			"person":    7,
+		}
+		byteData, err := json.Marshal(data)
+		if err != nil {
+			log.Errorf(err.Error())
+			return
+		}
+		if txFlag {
 			token := mqttClient.Publish(topicWifi, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))

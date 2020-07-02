@@ -27,9 +27,9 @@ type (
 	}
 
 	wifiStruct struct {
-		Sensor           string `json:"sensor"`
-		Timestamp        string `json:"timestamp"`
-		ConnectedDevices int    `json:"connecteddevices"`
+		Sensor    string `json:"sensor"`
+		Timestamp string `json:"timestamp"`
+		Person    int    `json:"person"`
 	}
 
 	// CollectData stores all the structs with received data
