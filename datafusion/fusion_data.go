@@ -161,6 +161,7 @@ func (f *PredictionDataStruct) setPersonData(rfidUser, camUser, wifiUser float64
 	f.RfidUser = math.Round(rfidUser*100*100) / 100
 	f.CameraUser = math.Round(camUser*100*100) / 100
 	f.WifiUser = math.Round(wifiUser*100*100) / 100
+	f.WifiRssi = math.Round(-90*100) / 100
 
 	for _, data := range data.Rfid.PersonCount {
 		if data.Person == f.Person {
