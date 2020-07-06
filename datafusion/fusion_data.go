@@ -13,7 +13,7 @@ type (
 		Person     int     `json:"person"`
 		Presence   float64 `json:"presence"`
 		RfidUser   float64 `json:"rfiduser"`
-		RfidPower  float64 `json:"power"`
+		RfidPower  float64 `json:"rfidpower"`
 		CameraUser float64 `json:"camerauser"`
 		WifiUser   float64 `json:"wifiuser"`
 		WifiRssi   float64 `json:"wifirssi"`
@@ -161,7 +161,8 @@ func (f *PredictionDataStruct) setPersonData(rfidUser, camUser, wifiUser float64
 	f.RfidUser = math.Round(rfidUser*100*100) / 100
 	f.CameraUser = math.Round(camUser*100*100) / 100
 	f.WifiUser = math.Round(wifiUser*100*100) / 100
-	f.WifiRssi = math.Round(-90*100) / 100
+	f.RfidPower = math.Round(-100*100) / 100
+	f.WifiRssi = math.Round(-100*100) / 100
 
 	for _, data := range data.Rfid.PersonCount {
 		if data.Person == f.Person {

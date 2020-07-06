@@ -226,8 +226,8 @@ func auxSendPresence() {
 
 func auxSendRfid() {
 	i := 0
-	min := 0
-	max := 100
+	min := -70
+	max := -20
 	for i < 8 {
 		timestamp := 123456789 + i
 		power := float64(rand.Intn(max-min) + min)
@@ -242,7 +242,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		if txFlag || (!txFlag && (power >= 60)) {
+		if txFlag || (!txFlag && (power >= float64(-40))) {
 			token := mqttClient.Publish(topicRfid, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
@@ -267,7 +267,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		if txFlag || (!txFlag && (power >= 60)) {
+		if txFlag || (!txFlag && (power >= float64(-40))) {
 			token := mqttClient.Publish(topicRfid, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
@@ -292,7 +292,7 @@ func auxSendRfid() {
 			log.Errorf(err.Error())
 			return
 		}
-		if txFlag || (!txFlag && (power >= 60)) {
+		if txFlag || (!txFlag && (power >= float64(-40))) {
 			token := mqttClient.Publish(topicRfid, 0, false, byteData)
 			if token.Wait() && token.Error() != nil {
 				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
