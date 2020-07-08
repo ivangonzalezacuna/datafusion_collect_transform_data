@@ -1,6 +1,8 @@
 package mainprocess
 
 import (
+	"math"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -138,17 +140,17 @@ func (g *JoinedData) getRfidValues(data CollectData) error {
 	for _, v := range data.Rfid {
 		if data, exist := peopleCount[v.Person]; exist {
 			data.count++
-			data.total += v.Power
+			data.total += math.Pow(10, v.Power/10)
 			peopleCount[v.Person] = data
 		} else {
 			data.count = 1
-			data.total = v.Power
+			data.total = math.Pow(10, v.Power/10)
 			peopleCount[v.Person] = data
 		}
 	}
 
 	for k, v := range peopleCount {
-		powerAvg := v.total / float64(v.count)
+		powerAvg := 10 * (math.Log10(v.total / float64(v.count)))
 		g.Rfid.PersonCount = append(g.Rfid.PersonCount, rfidStructCountFinal{Person: k, Count: v.count, Power: powerAvg})
 		log.Debugf("RFID -> Person: %d , Data: %v\n", k, v)
 	}
@@ -171,17 +173,17 @@ func (g *JoinedData) getWifiValues(data CollectData) error {
 	for _, v := range data.Wifi {
 		if data, exist := peopleCount[v.Person]; exist {
 			data.count++
-			data.total += v.Rssi
+			data.total += math.Pow(10, v.Rssi/10)
 			peopleCount[v.Person] = data
 		} else {
 			data.count = 1
-			data.total = v.Rssi
+			data.total = math.Pow(10, v.Rssi/10)
 			peopleCount[v.Person] = data
 		}
 	}
 
 	for k, v := range peopleCount {
-		rssiAvg := v.total / float64(v.count)
+		rssiAvg := 10 * (math.Log10(v.total / float64(v.count)))
 		g.Wifi.PersonCount = append(g.Wifi.PersonCount, wifiStructCountFinal{Person: k, Count: v.count, Rssi: rssiAvg})
 		log.Debugf("WIFI -> Person: %d , Data: %v\n", k, v)
 	}
