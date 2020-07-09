@@ -10,6 +10,7 @@ import (
 	"time"
 
 	datafusion "mainprocess/datafusion"
+	"mainprocess/tracker"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	ml "github.com/ivangonzalezacuna/ml_regression_tracking"
@@ -36,6 +37,9 @@ var (
 	txFlag = false
 	// count is used to allow only one thread to activate the txFlag and deactivate it after some time
 	count = 0
+
+	changeCounterRfid float64
+	changeCounterWifi float64
 
 	// Topic names used in the system
 	topicSensor = "/Nodes/Node_ID/Tracking/Sensor/+"
@@ -113,6 +117,12 @@ func init() {
 	viper.SetDefault("mqtt.pingTimeout", 1)
 	pingTimeout := viper.GetInt("mqtt.pingTimeout")
 	viper.Set("mqtt.pingTimeout", pingTimeout)
+	viper.SetDefault("positioning.changeCounterRfid", 5.0)
+	changeCounterRfid = viper.GetFloat64("positioning.changeCounterRfid")
+	viper.Set("positioning.changeCounterRfid", changeCounterRfid)
+	viper.SetDefault("positioning.changeCounterWifi", 5.0)
+	changeCounterWifi = viper.GetFloat64("positioning.changeCounterWifi")
+	viper.Set("positioning.changeCounterWifi", changeCounterWifi)
 	viper.WriteConfig()
 
 	opts := mqtt.NewClientOptions().AddBroker(server).SetClientID(clientID)
@@ -254,11 +264,12 @@ func makePredictions() error {
 			if err != nil {
 				return err
 			}
-			topic := fmt.Sprintf(toolTopic, predictionDataStruct[k].Person)
-			token := mqttClient.Publish(topic, 0, false, byteData)
-			if token.Wait() && token.Error() != nil {
-				log.Errorf(fmt.Sprintf("Error publishing: %v", token.Error()))
+			var data map[string]interface{}
+			err = json.Unmarshal(byteData, &data)
+			if err != nil {
+				log.Errorf(err.Error())
 			}
+			tracker.CheckPermissionsAndStoreEntry(data, "Node_AA", changeCounterRfid, changeCounterWifi)
 		}
 	}
 
